@@ -133,7 +133,6 @@ const getByIdFromDb = async (id: string) => {
           user: true,
         },
       },
-      activities: true,
     },
   });
 
