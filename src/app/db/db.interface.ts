@@ -11,4 +11,5 @@ export enum Role {
   ADMIN,
   USER,
   SUPER_ADMIN,
+  PROJECT_MANAGER
 }

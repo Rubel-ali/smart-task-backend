@@ -8,32 +8,29 @@ datasource db {
 }
 
 model User {
-  id       String     @id @default(auto()) @map("_id") @db.ObjectId
-  email    String     @unique
-  password String
-  name     String
-  role     UserRole   @default(TEAM_MEMBER)
-  status   UserStatus @default(ACTIVE)
-
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  email          String     @unique
+  username       String     @default("")
+  fullName       String     @default("")
+  phoneNumber    String     @default("")
+  password       String     @default("")
+  region         String     @default("")
+  country        String     @default("")
+  role           UserRole   @default(TEAM_MEMBER)
+  userStatus     UserStatus @default(ACTIVE)
   fcmToken       String?    @default("")
   dob            DateTime?
   image          String     @default("")
   expirationOtp  DateTime?
   otp            Int?
   isNotification Boolean    @default(true)
+  status         UserStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
   isGoogleAuth   Boolean    @default(false)
   lastLogin      DateTime?  @default(now())
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  createdProjects Project[]       @relation("ProjectCreator")
-  assignedTasks   Task[]          @relation("TaskAssignee")
-  memberships     ProjectMember[]
-  comments        Comment[]
-  activities      Activity[]
-  notifications   Notification[]
+  // notifications Notification[] @relation("UserRelation")
 
   // Relations
   messagesSent     Message[]  @relation("SentMessages")
@@ -41,6 +38,20 @@ model User {
   rooms            RoomUser[]
   callsMade        Call[]     @relation("CallCaller")
   callsReceived    Call[]     @relation("CallReceiver")
+
+  // Relations
+  createdProjects Project[] @relation("ProjectCreator")
+  assignedTasks   Task[]    @relation("TaskAssignee")
+
+  projectMemberships ProjectMember[]
+
+  comments Comment[]
+
+  activities Activity[]
+
+  notifications Notification[]
+
+  @@map("users")
 }
 
 model Project {
@@ -272,6 +283,7 @@ enum CallStatus {
 
 enum UserRole {
   ADMIN
+  SUPER_ADMIN
   PROJECT_MANAGER
   TEAM_MEMBER
 }

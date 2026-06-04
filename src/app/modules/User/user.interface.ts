@@ -4,8 +4,9 @@ export interface IUser {
   id?: string;
   email: string;
   username: string;
-  phoneNumber?: string; // ✅ New
-  location?: string;    // ✅ New
+  fullName: string;
+  phoneNumber?: string;
+  location?: string;
   password: string;
   role: UserRole;
   profession: string;
@@ -20,7 +21,7 @@ export interface IUser {
 
 
 export type IUserFilterRequest = {
-  name?: string | undefined;
+  fullName?: string | undefined;
   email?: string | undefined;
   contactNumber?: string | undefined;
   searchTerm?: string | undefined;
