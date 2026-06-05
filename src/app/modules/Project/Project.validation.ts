@@ -43,7 +43,17 @@ const updateSchema = z.object({
     .optional(),
 });
 
+const addMemberSchema = z.object({
+  userId: z.string({
+    required_error: "User ID is required",
+  }),
+  role: z
+    .enum(["ADMIN", "PROJECT_MANAGER", "MEMBER"])
+    .optional(),
+});
+
 export const ProjectValidation = {
   createSchema,
   updateSchema,
+  addMemberSchema,
 };

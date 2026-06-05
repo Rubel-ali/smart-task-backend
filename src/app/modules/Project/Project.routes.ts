@@ -15,6 +15,13 @@ router.post(
 
 router.get("/", auth(), ProjectController.getProjectList);
 
+router.post(
+  "/:projectId/members",
+  auth(),
+  validateRequest(ProjectValidation.addMemberSchema),
+  ProjectController.addMemberIntoProject,
+);
+
 router.get("/:id", auth(), ProjectController.getProjectById);
 
 router.put(

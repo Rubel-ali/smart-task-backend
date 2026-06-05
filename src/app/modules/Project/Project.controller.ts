@@ -37,6 +37,26 @@ const getProjectList = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const addMemberIntoProject = catchAsync(
+  async (req, res) => {
+    const { projectId } = req.params;
+    const { userId } = req.body;
+
+    const result =
+      await ProjectService.addMemberIntoProject(
+        projectId,
+        userId
+      );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Member added to project successfully",
+      data: result,
+    });
+  }
+);
+
 const getProjectById = catchAsync(async (req: Request, res: Response) => {
   const result = await ProjectService.getByIdFromDb(req.params.id);
   sendResponse(res, {
@@ -70,6 +90,7 @@ const deleteProject = catchAsync(async (req: Request, res: Response) => {
 export const ProjectController = {
   createProject,
   getProjectList,
+  addMemberIntoProject,
   getProjectById,
   updateProject,
   deleteProject,

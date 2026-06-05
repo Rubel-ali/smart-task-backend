@@ -7,69 +7,58 @@ import { Prisma } from "@prisma/client";
 const createIntoDb = async (data: ITask) => {
   const dueDate = new Date(data.dueDate);
 
-  // ❌ invalid date
   if (isNaN(dueDate.getTime())) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Invalid due date"
-    );
+    throw new ApiError(400, "Invalid due date");
   }
 
-  // ❌ past date check
-  if (dueDate <= new Date()) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Due date must be future date"
-    );
+  const now = new Date();
+  if (dueDate <= now) {
+    throw new ApiError(400, "Due date must be future date");
   }
 
-  // ❌ project check
   const project = await prisma.project.findUnique({
     where: { id: data.projectId },
   });
 
   if (!project) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Project not found"
-    );
+    throw new ApiError(404, "Project not found");
   }
 
-  // ❌ duplicate task title in same project
-  const existingTask =
-    await prisma.task.findFirst({
-      where: {
-        title: data.title,
-        projectId: data.projectId,
-      },
+  if (data.assignedToId) {
+    const user = await prisma.user.findUnique({
+      where: { id: data.assignedToId },
     });
 
-  if (existingTask) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Task already exists in this project"
-    );
+    if (!user) {
+      throw new ApiError(404, "Assigned user not found");
+    }
   }
 
-  const result = await prisma.task.create({
-    data: {
+  const existingTask = await prisma.task.findFirst({
+    where: {
       title: data.title,
-      description: data.description || "",
       projectId: data.projectId,
-      assignedToId: data.assignedToId || null,
-      dueDate,
-      priority: data.priority || "MEDIUM",
-      status: data.status || "TODO"
     },
   });
 
-  return result;
+  if (existingTask) {
+    throw new ApiError(400, "Task already exists in this project");
+  }
+
+  return await prisma.task.create({
+    data: {
+      title: data.title,
+      description: data.description ?? "",
+      projectId: data.projectId,
+      assignedToId: data.assignedToId ?? null,
+      dueDate,
+      priority: data.priority || "MEDIUM",
+      status: data.status || "TODO",
+    },
+  });
 };
 
-const getListFromDb = async (
-  params: any,
-  options: any
-) => {
+const getListFromDb = async (params: any, options: any) => {
   const { page, limit, skip } = options;
 
   const { searchTerm, ...filterData } = params;
@@ -108,9 +97,7 @@ const getListFromDb = async (
   }
 
   const whereConditions: Prisma.TaskWhereInput =
-    andConditions.length > 0
-      ? { AND: andConditions }
-      : {};
+    andConditions.length > 0 ? { AND: andConditions } : {};
 
   // 📦 FETCH DATA
   const result = await prisma.task.findMany({
@@ -121,8 +108,19 @@ const getListFromDb = async (
       createdAt: "desc",
     },
     include: {
-      project: true,
-      assignedTo: true
+      project: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      assignedTo: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+        },
+      },
     },
   });
 
@@ -144,10 +142,7 @@ const getListFromDb = async (
 const getByIdFromDb = async (id: string) => {
   const result = await prisma.task.findUnique({ where: { id } });
   if (!result) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Task not found"
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, "Task not found");
   }
   return result;
 };
@@ -158,17 +153,14 @@ const updateIntoDb = async (id: string, data: any) => {
   });
 
   if (!task) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Task not found"
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, "Task not found");
   }
 
   // ❌ completed task restriction
   if (task.status === "COMPLETED") {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      "Completed tasks cannot be modified"
+      "Completed tasks cannot be modified",
     );
   }
 
@@ -186,10 +178,7 @@ const deleteItemFromDb = async (id: string) => {
   });
 
   if (!task) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Task not found"
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, "Task not found");
   }
 
   return prisma.task.delete({
