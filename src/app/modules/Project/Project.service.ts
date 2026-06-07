@@ -5,21 +5,17 @@ import { IProject, IProjectsFilterRequest } from "./Project.interface";
 import { IPaginationOptions } from "../../../interfaces/paginations";
 import { paginationHelper } from "../../../helpars/paginationHelper";
 import { Prisma } from "@prisma/client";
+import { ActivityService } from "../Activity/Activity.service";
 
 const createIntoDb = async (data: IProject) => {
   const deadline = new Date(data.deadline);
 
-  // ❌ invalid date check
   if (isNaN(deadline.getTime())) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Invalid deadline format"
-    );
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid deadline format");
   }
 
   const now = new Date();
 
-  // ❌ past deadline validation
   if (deadline.getTime() <= now.getTime()) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -36,6 +32,13 @@ const createIntoDb = async (data: IProject) => {
       createdById: data.createdById,
     },
   });
+
+  // ✅ ACTIVITY LOG
+  await ActivityService.logActivity(
+    `Created project "${result.name}"`,
+    result.createdById,
+    result.id
+  );
 
   return result;
 };
@@ -146,22 +149,15 @@ const getByIdFromDb = async (id: string) => {
   return project;
 };
 
-const updateIntoDb = async (
-  id: string,
-  data: Partial<IProject>
-) => {
+const updateIntoDb = async (id: string, data: Partial<IProject>) => {
   const isExist = await prisma.project.findUnique({
     where: { id },
   });
 
   if (!isExist) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Project not found"
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, "Project not found");
   }
 
-  // ❌ validation: deadline check
   if (data.deadline) {
     const deadline = new Date(data.deadline);
 
@@ -183,6 +179,13 @@ const updateIntoDb = async (
     },
   });
 
+  // ✅ ACTIVITY LOG
+  await ActivityService.logActivity(
+    `Updated project "${result.name}"`,
+    result.createdById,
+    result.id
+  );
+
   return result;
 };
 
@@ -192,11 +195,15 @@ const deleteItemFromDb = async (id: string) => {
   });
 
   if (!isExist) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Project not found"
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, "Project not found");
   }
+
+  // ✅ ACTIVITY LOG (before delete)
+  await ActivityService.logActivity(
+    `Deleted project "${isExist.name}"`,
+    isExist.createdById,
+    isExist.id
+  );
 
   const result = await prisma.project.delete({
     where: { id },
@@ -209,38 +216,25 @@ const addMemberIntoProject = async (
   projectId: string,
   userId: string
 ) => {
-  // check project
   const project = await prisma.project.findUnique({
     where: { id: projectId },
   });
 
   if (!project) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Project not found"
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, "Project not found");
   }
 
-  // check user
   const user = await prisma.user.findUnique({
     where: { id: userId },
   });
 
   if (!user) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "User not found"
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  // duplicate member check
-  const existing =
-    await prisma.projectMember.findFirst({
-      where: {
-        projectId,
-        userId,
-      },
-    });
+  const existing = await prisma.projectMember.findFirst({
+    where: { projectId, userId },
+  });
 
   if (existing) {
     throw new ApiError(
@@ -249,13 +243,16 @@ const addMemberIntoProject = async (
     );
   }
 
-  const result =
-    await prisma.projectMember.create({
-      data: {
-        projectId,
-        userId,
-      },
-    });
+  const result = await prisma.projectMember.create({
+    data: { projectId, userId },
+  });
+
+  // ✅ ACTIVITY LOG
+  await ActivityService.logActivity(
+    `${user.username} joined the project`,
+    userId,
+    projectId
+  );
 
   return result;
 };

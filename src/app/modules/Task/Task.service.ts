@@ -3,6 +3,7 @@ import { ITask } from "./Task.interface";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { Prisma } from "@prisma/client";
+import { ActivityService } from "../Activity/Activity.service";
 
 const createIntoDb = async (data: ITask) => {
   const dueDate = new Date(data.dueDate);
@@ -45,7 +46,7 @@ const createIntoDb = async (data: ITask) => {
     throw new ApiError(400, "Task already exists in this project");
   }
 
-  return await prisma.task.create({
+  const result = await prisma.task.create({
     data: {
       title: data.title,
       description: data.description ?? "",
@@ -56,6 +57,16 @@ const createIntoDb = async (data: ITask) => {
       status: data.status || "TODO",
     },
   });
+
+  // ✅ ACTIVITY LOG
+  await ActivityService.logActivity(
+    `Created task "${result.title}"`,
+    data.assignedToId || project.createdById,
+    data.projectId,
+    result.id
+  );
+
+  return result;
 };
 
 const getListFromDb = async (params: any, options: any) => {
@@ -156,11 +167,10 @@ const updateIntoDb = async (id: string, data: any) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Task not found");
   }
 
-  // ❌ completed task restriction
   if (task.status === "COMPLETED") {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      "Completed tasks cannot be modified",
+      "Completed tasks cannot be modified"
     );
   }
 
@@ -168,6 +178,24 @@ const updateIntoDb = async (id: string, data: any) => {
     where: { id },
     data,
   });
+
+  // ✅ ACTIVITY LOG (status change detect)
+  if (data.status && data.status !== task.status) {
+    await ActivityService.logActivity(
+      `Changed task status from ${task.status} to ${data.status}`,
+      task.assignedToId || task.projectId,
+      task.projectId,
+      task.id
+    );
+  }
+
+  // ✅ GENERAL UPDATE LOG
+  await ActivityService.logActivity(
+    `Updated task "${task.title}"`,
+    task.assignedToId || task.projectId,
+    task.projectId,
+    task.id
+  );
 
   return result;
 };
@@ -181,10 +209,18 @@ const deleteItemFromDb = async (id: string) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Task not found");
   }
 
+  await ActivityService.logActivity(
+    `Deleted task "${task.title}"`,
+    task.assignedToId || task.projectId,
+    task.projectId,
+    task.id
+  );
+
   return prisma.task.delete({
     where: { id },
   });
 };
+
 export const TaskService = {
   createIntoDb,
   getListFromDb,
