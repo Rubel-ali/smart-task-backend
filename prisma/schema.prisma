@@ -69,8 +69,9 @@ model Project {
 
   createdBy User @relation("ProjectCreator", fields: [createdById], references: [id])
 
-  members ProjectMember[]
-  tasks   Task[]
+  members  ProjectMember[]
+  tasks    Task[]
+  Activity Activity[]
 
   @@index([status])
 }
@@ -115,6 +116,7 @@ model Task {
 
   comments    Comment[]
   attachments Attachment[]
+  Activity    Activity[]
 
   @@unique([projectId, title])
   @@index([status])
@@ -167,6 +169,9 @@ model Activity {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  project Project? @relation(fields: [projectId], references: [id])
+  task    Task?    @relation(fields: [taskId], references: [id])
 
   @@index([projectId])
   @@index([taskId])
